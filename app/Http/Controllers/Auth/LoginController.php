@@ -2,65 +2,72 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
+use Illuminate\Routing\Controller;
+use App\Http\Controllers\Controller as BaseController;
 use App\Models\User;
+use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class LoginController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    use AuthenticatesUsers;
+
+    protected $redirectTo = '/home';
+
+    public function __construct()
     {
-        //
+        $this->middleware('guest')->except('logout');
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function login(Request $request)
     {
-        //
+        $credentials = $request->only('email', 'password');
+
+        // Cari pengguna berdasarkan email
+        $user = User::where('email', $credentials['email'])->first();
+
+        // Jika pengguna ditemukan dan memiliki Google ID, periksa kata sandi default
+        if ($user && $user->google_id && Hash::check('123', $user->password)) {
+            return redirect()->route('set.password')->withErrors([
+                'email' => 'Please set a new password to login.',
+            ]);
+        }
+
+        if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
+            $request->session()->put('email', $request->input('email'));
+            $request->session()->put('role', Auth::user()->role);
+
+            switch (Auth::user()->role) {
+                case 'admin':
+                    return redirect()->intended('/');
+                case 'client':
+                    return redirect()->intended('/');
+                default:
+                    return redirect()->intended('/home');
+            }
+        }
+
+        return back()->withErrors([
+            'email' => 'The provided credentials do not match our records.',
+        ])->withInput($request->only('email'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    protected function authenticated(Request $request, $user)
     {
-        //
+        return redirect()->route('welcome');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(User $user)
+    public function logout(Request $request)
     {
-        //
-    }
+        $this->guard()->logout();
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(User $user)
-    {
-        //
-    }
+        $request->session()->invalidate();
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, User $user)
-    {
-        //
-    }
+        $request->session()->regenerateToken();
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(User $user)
-    {
-        //
+        return redirect('/');
     }
 }
