@@ -24,12 +24,13 @@ php artisan db:seed --class=CompanySizeTableSeeder
 ```
 
 ```bash
-composer require laravel/ui
+cp .env.example .env
 ```
 
 ```bash
-php artisan key:generate
+composer require laravel/ui
 ```
+
 
 # Env 
 
